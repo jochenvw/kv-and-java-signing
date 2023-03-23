@@ -19,5 +19,11 @@
     -d 'client_id=<client-id>' \
     -d 'grant_type=client_credentials' \
     -d 'scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d%2F.default' \
+
     -d 'client_secret=<client-secret>'
+    ```
+
+  - Docs here: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/sign/sign?tabs=HTTP 
+    ```
+    curl -X POST -H "Authorization: Bearer [TOKEN]" -H "Content-Type: application/json" https://jvw-ravi-vault.vault.azure.net/keys/jvw-key/943283d300364f2f810c55af07f19141/sign?api-version=7.3 -d "{ \"alg\": \"RS512\", \"value\": \"hello world\" }"
     ```
