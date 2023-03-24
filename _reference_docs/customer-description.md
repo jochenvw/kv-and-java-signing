@@ -23,7 +23,6 @@ curl -X POST -d 'grant_type=client_credentials&client_id=c7ced622-d045-480b-819d
  
 CX shared a JAVA code used to verify the signature:
  
-package nl.rabobank.lza.ima;
 import java.io.File;
 import java.io.FileReader;
 import java.security.KeyFactory;

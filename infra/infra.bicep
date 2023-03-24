@@ -12,15 +12,11 @@ resource kv 'Microsoft.KeyVault/vaults@2022-11-01' = {
     tenantId: subscription().tenantId
     accessPolicies: [
       {
-        objectId: '35e39bc7-dde3-49e0-a410-58ce9de9d32c'
+        objectId: '<TODO: INSERT YOUR SERVICE PRINCIPAL ID>' // service principal id
         permissions: {
-          certificates: [
-            'get'
-            'list'
-            'delete'
-            'create'
-            'import'
-            'update'
+          keys: [
+            'sign'
+            'verify'
           ]
         }
         tenantId: subscription().tenantId
