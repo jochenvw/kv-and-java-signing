@@ -2,14 +2,16 @@
 
   - Install Azure CLI `curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash`
   - Ensure OpenSSL is installed [https://www.openssl.org/](https://www.openssl.org/)
+  - Ensure you're logged into the Azure CLI `az login --use-device-code`
 
 
 # Get started
-  - Create public/private key pair using [this](https://www.geeksforgeeks.org/how-to-create-a-public-private-key-pair/) tutorial:
+  - Create public/private key pair using [this](https://www.javacodegeeks.com/2020/04/encrypt-with-openssl-decrypt-with-java-using-openssl-rsa-public-private-keys.html) tutorial:
     ```
     In OpenSSL:
     genrsa -out private.pem
-    rsa -in private.pem -pubout -out public.pem ## Not needed actually because never used
+    pkcs8 -topk8 -in private.pem -out privatepkcs8.pem -nocrypt
+    rsa -pubout -outform pem -in privatepkcs8.pem -out publicpkcs8.pem
     ```
 
   - Create service principal for application
@@ -20,7 +22,7 @@
 
   - Import private key into keyvault
     ```
-    az keyvault key import --vault-name jvw-ravi-vault --name jvw-key --pem-file private.pem
+    az keyvault key import --vault-name jvw-ravi-vault --name jvw-key --pem-file privatepkcs8.pem
     ```
 
   - Get access token for the service principal - use values from the service principal created in step 2.:
@@ -29,7 +31,7 @@
     https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token \
     -d 'client_id=<client-id>' \
     -d 'grant_type=client_credentials' \
-    -d 'scope=https://vault.azure.com/.default' \
+    -d 'scope=https://vault.azure.net/.default' \
     -d 'client_secret=<client-secret>'
     ```
 
