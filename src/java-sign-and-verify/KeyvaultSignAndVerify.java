@@ -6,12 +6,99 @@ import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-// import 
+import java.io.*;
+import java.security.*;
+import java.security.spec.*;
+import java.nio.charset.StandardCharsets;
 
 public class KeyvaultSignAndVerify {
     public static void main(String[] args) {
+        String message = "Hello, world";
+        signAndVerifyUsingKeyvault(message);
+        signAndVerifyUsingJAVA(message);
+    }
+
+    private static byte[] readKeyFile(String filePath) {
         try {
-            String message = "Hello, world";
+            File file = new File(filePath);
+            FileInputStream fis = new FileInputStream(file);
+            byte[] privateKeyBytes = new byte[(int) file.length()];
+            // Load the private key from file
+            fis.read(privateKeyBytes);
+            fis.close();
+
+            String fileContent = new String(privateKeyBytes, StandardCharsets.UTF_8);
+
+            // Inspired here:
+            // https://www.javacodegeeks.com/2020/04/encrypt-with-openssl-decrypt-with-java-using-openssl-rsa-public-private-keys.html
+            String cleanFileContent = fileContent
+                    .replaceAll("\\n", "")
+                    .replaceAll("-----BEGIN PUBLIC KEY-----", "")
+                    .replaceAll("-----END PUBLIC KEY-----", "")
+                    .replaceAll("-----BEGIN PRIVATE KEY-----", "")
+                    .replaceAll("-----END PRIVATE KEY-----", "")
+                    .trim();
+
+
+
+            return Base64.getDecoder().decode(cleanFileContent);
+        } catch (Exception e) {
+            System.out.println("ERROR while reading " + filePath);
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void signAndVerifyUsingJAVA(String message) {
+        try {
+            System.out.println("\r\n\r\nJAVA Signature verification ...");
+            byte[] privateKeyBytes = readKeyFile("privatepkcs8.pem");
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
+
+            // Create a signature object and initialize it with the private key
+            Signature signature = Signature.getInstance("SHA512withRSA");
+            signature.initSign(privateKey);
+
+            // Sign the message
+            byte[] messageBytes = message.getBytes("UTF-8");
+            signature.update(messageBytes);
+            byte[] signatureBytes = signature.sign();
+
+            // Print the signature
+            String signatureString = Base64.getEncoder().encodeToString(signatureBytes);
+
+            // Load the public key from file
+            byte[] publicKeyBytes = readKeyFile("publicpkcs8.pem");
+            X509EncodedKeySpec pubkeySpec = new X509EncodedKeySpec(publicKeyBytes);
+            keyFactory = KeyFactory.getInstance("RSA");
+            PublicKey publicKey = keyFactory.generatePublic(pubkeySpec);
+
+            // Verify the signature
+            signatureBytes = Base64.getDecoder().decode(signatureString);
+            signature = Signature.getInstance("SHA512withRSA");
+            signature.initVerify(publicKey);
+            signature.update(messageBytes);
+            boolean verified = signature.verify(signatureBytes);
+
+            // Print the verification result
+            System.out.println("Signature string: " + signatureString);
+            System.out.println("Signature verification result: " + verified);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    private static void signAndVerifyUsingKeyvault(String message) {
+        try {
+            System.out.println("\r\n\r\nAzure KeyVault Signature verification ...");
+            /**
+             * Sign and verify using the Azure KeyVault
+             */
+
             String bearerToken = "<INSERT BEARER TOKEN>";
 
             // Generate digest using SHA-512 and base64-encode it
@@ -22,22 +109,21 @@ public class KeyvaultSignAndVerify {
             // Sign the digest using RS512 algorithm and private key stored in the key vault
             String signUrl = "<INSERT SIGN URL>";
             // print the encoded digest
-            System.out.println("Encoded digest: " + encodedDigest);
+            //System.out.println("Encoded digest: " + encodedDigest);
             // #CHECKED: Matches bash value
 
             String signRequest = String.format("{ \"alg\": \"RS512\", \"value\": \"%s\" }", encodedDigest);
 
             String response = sendPostRequest(signUrl, bearerToken, signRequest);
             String valueToVerify = getValueFromResponse(response);
-            // print value to verify
-            System.out.println("Value to verify: " + valueToVerify);
 
             // Verify the signature using public key stored in the key vault
             String verifyUrl = "<INSERT VERIFY URL>";
             String verifyRequest = String.format("{ \"alg\": \"RS512\", \"value\": \"%s\", \"digest\": \"%s\" }", valueToVerify, encodedDigest);
             String verifyResponse = sendPostRequest(verifyUrl, bearerToken, verifyRequest);
 
-            System.out.println("Verification result: " + verifyResponse);
+            System.out.println("Signature string: " + valueToVerify);
+            System.out.println("Signature verification result: " + verifyResponse);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -79,12 +165,8 @@ public class KeyvaultSignAndVerify {
         return response.toString();
     }
 
-
     private static String getValueFromResponse(String response) {
         String value = null;
-
-        System.out.println("Response: " + response);
-
         try {
             String json = response.trim();
             int startIndex = json.indexOf("\"value\":") + 9;
@@ -98,4 +180,3 @@ public class KeyvaultSignAndVerify {
         return value;
     }
 }
-
