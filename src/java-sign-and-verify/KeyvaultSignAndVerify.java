@@ -14,42 +14,22 @@ import java.nio.charset.StandardCharsets;
 public class KeyvaultSignAndVerify {
     public static void main(String[] args) {
         String message = "Hello, world";
-        signAndVerifyUsingKeyvault(message);
-        signAndVerifyUsingJAVA(message);
+        String kvSignature = signAndVerifyUsingKeyvault(message);
+        String javaSignature = signAndVerifyUsingJAVA(message);
+
+        // Print a statement indicating whether kvSignature and javaSignature match
+        System.out.println("\r\n\r\nMatching signatures: " + kvSignature.equals(javaSignature));      
+
+        // keyVault returns a base64URL encoded string, wheras JAVA expects a base64 encoded string
+        // Convert the keyVault signature to base64
+        String kvSignatureBase64 = kvSignature.replace('-', '+').replace('_', '/');
+        kvSignatureBase64 = kvSignatureBase64 + "==";
+        
+        System.out.println(kvSignatureBase64);              
+        System.out.println("\r\n\r\nSignature verification result: " + kvSignatureBase64.equals(javaSignature));
     }
 
-    private static byte[] readKeyFile(String filePath) {
-        try {
-            File file = new File(filePath);
-            FileInputStream fis = new FileInputStream(file);
-            byte[] privateKeyBytes = new byte[(int) file.length()];
-            // Load the private key from file
-            fis.read(privateKeyBytes);
-            fis.close();
-
-            String fileContent = new String(privateKeyBytes, StandardCharsets.UTF_8);
-
-            // Inspired here:
-            // https://www.javacodegeeks.com/2020/04/encrypt-with-openssl-decrypt-with-java-using-openssl-rsa-public-private-keys.html
-            String cleanFileContent = fileContent
-                    .replaceAll("\\n", "")
-                    .replaceAll("-----BEGIN PUBLIC KEY-----", "")
-                    .replaceAll("-----END PUBLIC KEY-----", "")
-                    .replaceAll("-----BEGIN PRIVATE KEY-----", "")
-                    .replaceAll("-----END PRIVATE KEY-----", "")
-                    .trim();
-
-
-
-            return Base64.getDecoder().decode(cleanFileContent);
-        } catch (Exception e) {
-            System.out.println("ERROR while reading " + filePath);
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void signAndVerifyUsingJAVA(String message) {
+    private static String signAndVerifyUsingJAVA(String message) {
         try {
             System.out.println("\r\n\r\nJAVA Signature verification ...");
             byte[] privateKeyBytes = readKeyFile("privatepkcs8.pem");
@@ -85,14 +65,14 @@ public class KeyvaultSignAndVerify {
             // Print the verification result
             System.out.println("Signature string: " + signatureString);
             System.out.println("Signature verification result: " + verified);
+            return signatureString;
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-
-    private static void signAndVerifyUsingKeyvault(String message) {
+    private static String signAndVerifyUsingKeyvault(String message) {
         try {
             System.out.println("\r\n\r\nAzure KeyVault Signature verification ...");
             /**
@@ -124,8 +104,41 @@ public class KeyvaultSignAndVerify {
 
             System.out.println("Signature string: " + valueToVerify);
             System.out.println("Signature verification result: " + verifyResponse);
+            return valueToVerify;
         } catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static byte[] readKeyFile(String filePath) {
+        try {
+            File file = new File(filePath);
+            FileInputStream fis = new FileInputStream(file);
+            byte[] privateKeyBytes = new byte[(int) file.length()];
+            // Load the private key from file
+            fis.read(privateKeyBytes);
+            fis.close();
+
+            String fileContent = new String(privateKeyBytes, StandardCharsets.UTF_8);
+
+            // Inspired here:
+            // https://www.javacodegeeks.com/2020/04/encrypt-with-openssl-decrypt-with-java-using-openssl-rsa-public-private-keys.html
+            String cleanFileContent = fileContent
+                    .replaceAll("\\n", "")
+                    .replaceAll("-----BEGIN PUBLIC KEY-----", "")
+                    .replaceAll("-----END PUBLIC KEY-----", "")
+                    .replaceAll("-----BEGIN PRIVATE KEY-----", "")
+                    .replaceAll("-----END PRIVATE KEY-----", "")
+                    .trim();
+
+
+
+            return Base64.getDecoder().decode(cleanFileContent);
+        } catch (Exception e) {
+            System.out.println("ERROR while reading " + filePath);
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
